@@ -8,10 +8,30 @@
 -define(SLAVE_ARGS, "+K true -connect_all false").
 -define(RPC_CALL_TIMEOUT, 30000).
 -define(RPC_RETRY_TIMEOUT, 120000).
+-define(CONNECT_RUNNING, "DISCO_MASTER_CONNECT_RUNNING").
 
 -spec start_link(host(), node_ports()) -> pid().
 start_link(Host, Ports) ->
-    spawn_link(fun() -> spawn_node(Host, Ports) end).
+    % Depending on the name of the host and configuration,
+    % decide iF to start a slave or just to connect to it
+    ConnectRunning = disco:has_setting(?CONNECT_RUNNING),
+    case ConnectRunning of
+	true ->
+	    case {is_master(Host),
+		  disco:get_setting(?CONNECT_RUNNING)} of
+		{false, "on"} ->
+		    % TODO!!!
+		    % that's seriously weird: -setcookie gets ignored or
+		    % overriden, so we need to set the cookie from settings
+		    % again
+		    erlang:set_cookie(node(),
+		      list_to_atom(disco:get_setting("DISCO_COOKIE"))),
+		    spawn_link(fun() -> connect_node(Host, Ports) end);
+		_ ->
+		    spawn_link(fun() -> spawn_node(Host, Ports) end)
+	    end;
+	_ -> spawn_link(fun() -> spawn_node(Host, Ports) end)
+    end.
 
 -spec spawn_node(host(), node_ports(), boolean()) -> ok.
 spawn_node(Host, Ports) ->
@@ -49,6 +69,12 @@ do_spawn_node(Host, RealHost, Ports, IsMaster) ->
             disco_server:connection_status(Host, down)
     end,
     timer:sleep(?RESTART_DELAY).
+
+-spec connect_node(host(), node_ports()) -> ok.
+connect_node(Node, Ports) ->
+    [_, Host] = string:tokens(Node, "@"),
+    DiscoRoot = disco:get_setting("DISCO_DATA"),
+    node_monitor(Host, list_to_atom(Node), DiscoRoot, Ports, {true, true}).
 
 -spec node_monitor(host(), node(), path(), node_ports(), {boolean(), boolean()})
                   -> ok.

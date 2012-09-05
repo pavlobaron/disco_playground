@@ -195,6 +195,21 @@ class Master(clx.server.Server):
         settings = self.settings
         epath = lambda p: os.path.join(settings['DISCO_MASTER_HOME'], p)
         edep = lambda d: os.path.join(settings['DISCO_MASTER_HOME'], 'deps', d, 'ebin')
+        if settings['DISCO_MASTER_CONNECT_RUNNING'] == "on":
+            cookie = "-setcookie %s" % settings['DISCO_COOKIE']
+        else:
+            cookie = ""
+
+        if settings['DISCO_MASTER_NET']:
+            net = settings['DISCO_MASTER_NET']
+        else:
+            net = "-sname"
+
+        if net == "-name":
+            name = "%s@%s" % (self.name, self.host)
+        else:
+            name = self.name
+
         def lager_config(log_dir):
             return ['-lager', 'handlers',
                     '[{lager_console_backend, info},'
@@ -208,7 +223,8 @@ class Master(clx.server.Server):
                 '+P', '10000000',
                 '-rsh', 'ssh',
                 '-connect_all', 'false',
-                '-sname', self.name,
+                net, name,
+                cookie,
                 '-pa', epath('ebin'),
                 '-pa', edep('mochiweb'),
                 '-pa', edep('lager'),

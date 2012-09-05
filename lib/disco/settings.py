@@ -76,6 +76,16 @@ Possible settings for Disco are as follows:
                 Directory to use for writing cluster configuration.
                 Default obtained using ``os.path.join(DISCO_ROOT, '%s.config' % DISCO_NAME)``.
 
+        .. envvar:: DISCO_MASTER_CONNECT_RUNNING
+
+                Tells the master to connect to already running Erlang nodes rather than starting slaves. This is helpful for cases where Disco is going to pull the data from a different source than ddfs using some sort of Erlang interface. For example, pulling data out of the local Riak vnodes only, rather than accessing Riak through a generall high level interface. Riak nodes to connect to as slaves are being configured normally through the web interface, but in the way you name nodes in distributed Erlang
+                
+        .. envvar:: DISCO_COOKIE
+                The cookie needs to be properly set to connect to nodes that are already running, for example in case of Riak
+        
+        .. envvar:: DISCO_MASTER_NET
+                How to register the node name: through -sname or -name
+        
         .. envvar:: DISCO_NAME
 
                 A unique name for the Disco cluster.
@@ -132,7 +142,7 @@ Possible settings for Disco are as follows:
 
         .. envvar:: DISCO_WORKER_MAX_MEM
 
-                How much memory can be used by worker in total. Worker calls `resource.setrlimit(RLIMIT_AS, limit) <http://docs.python.org/library/resource.html#resource.setrlimit>`_ to set the limit when it starts. Can be either a percentage of total available memory or an exact number of bytes. Note that ``setrlimit`` behaves differently on Linux and Mac OS X, see *man setrlimit* for more information. Default is ``80%`` i.e. 80% of the total available memory.
+                How much memory can be used by worker in total. Worker calls `resource.setrlimit(RLIMIT_AS, limit) <http://docs.python.org/library/resource.html#resource.setrlimit>`_ to set the limit when it starts. Can be either a percentage of total available memory or an exact number of bytes. Note that ``setrlimit`` behaves differently on Linux and Mac OS X, see *man setrlimit* for more information. Default is ``80%`` i.e. 80% of the total available memory. 
 
 Settings to control the proxying behavior:
 
@@ -273,6 +283,9 @@ class DiscoSettings(Settings):
         'DISCO_MASTER_HOST':     "socket.gethostname()",
         'DISCO_MASTER_ROOT':     "os.path.join(DISCO_DATA, '_%s' % DISCO_NAME)",
         'DISCO_MASTER_CONFIG':   "os.path.join(DISCO_ROOT, '%s.config' % DISCO_NAME)",
+        'DISCO_MASTER_CONNECT_RUNNING':           "'off'",
+        'DISCO_COOKIE':          "dummy",
+        'DISCO_MASTER_NET':      "-sname",
         'DISCO_NAME':            "'disco_%s' % DISCO_PORT",
         'DISCO_LOG_DIR':         "os.path.join(DISCO_ROOT, 'log')",
         'DISCO_PID_DIR':         "os.path.join(DISCO_ROOT, 'run')",

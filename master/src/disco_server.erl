@@ -292,8 +292,12 @@ nodemon_exit(Pid, S, none) ->
 
 -spec node_ports(host(), port_map()) -> node_ports().
 node_ports(_Host, none) ->
-    GetPort = list_to_integer(disco:get_setting("DISCO_PORT")),
-    PutPort = list_to_integer(disco:get_setting("DDFS_PUT_PORT")),
+    % TODO!!!
+    % a real evil hack since on a local machine rebinding
+    % same ports as master keeps open won't work, of course
+    % necessary to clarify with Disco guys the exact flow here
+    GetPort = list_to_integer(disco:get_setting("DISCO_PORT")) + 2,
+    PutPort = list_to_integer(disco:get_setting("DDFS_PUT_PORT")) + 2,
     #node_ports{get_port = GetPort, put_port = PutPort};
 node_ports(Host, {_NextPort, PortMap}) ->
     {GetPort, PutPort} = gb_trees:get(Host, PortMap),
