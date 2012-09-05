@@ -387,9 +387,8 @@ def classic_iterator(urls,
         else:
             dest = [proxy_url(i, to_master=False) for i in input]
         notifier(dest)
-        #for record in Input(dest, open=worker.opener('map', 'in', params)):
-        #    yield record
-        yield "nix"
+        for record in Input(dest, open=worker.opener('map', 'in', params)):
+            yield record
 
 def result_iterator(*args, **kwargs):
     """Backwards compatible alias for :func:`classic_iterator`"""
