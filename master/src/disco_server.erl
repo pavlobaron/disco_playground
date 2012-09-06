@@ -25,7 +25,9 @@
                 num_running :: cores(),
                 stats_ok :: non_neg_integer(),
                 stats_failed :: non_neg_integer(),
-                stats_crashed :: non_neg_integer()}).
+                stats_crashed :: non_neg_integer(),
+		node :: node()
+	       }).
 -type dnode() :: #dnode{}.
 
 -record(state, {workers :: gb_tree(),
@@ -401,22 +403,34 @@ do_update_config_table(Config, Blacklist, GCBlacklist,
     lager:info("Config table updated"),
     {NewNodes, NewPortMap} =
         lists:foldl(
-          fun({Host, Slots}, {NewNodes, PortMap}) ->
+          fun({HHost, Slots}, {NewNodes, PortMap}) ->
+		  ConnectRunning = disco:has_setting("DISCO_MASTER_CONNECT_RUNNING"),
+		  case ConnectRunning of
+		      true ->
+			  case disco:get_setting("DISCO_MASTER_CONNECT_RUNNING") of
+			      "on" -> [_, Host] = string:tokens(HHost, "@");
+			      _ -> Host = HHost
+			  end;
+		      _ -> Host = HHost
+		  end,
                   {NewNode, NewMap} =
                       case gb_trees:lookup(Host, Nodes) of
                           none ->
                               NewPortMap = update_port_map(PortMap, Host),
                               NodePorts = node_ports(Host, NewPortMap),
                               lager:debug("Adding new node ~p", [Host]),
+			      Node = list_to_atom(HHost),
                               {#dnode{host = Host,
-                                      node_mon = node_mon:start_link(Host, NodePorts),
+                                      node_mon = node_mon:start_link(Host, NodePorts, Node),
                                       manual_blacklist = lists:member(Host, Blacklist),
                                       connection_status = {down, now()},
                                       slots = Slots,
                                       num_running = 0,
                                       stats_ok = 0,
                                       stats_failed = 0,
-                                      stats_crashed = 0},
+                                      stats_crashed = 0,
+				      node = Node
+				     },
                                NewPortMap};
                           {value, N} ->
                               {N#dnode{slots = Slots,
