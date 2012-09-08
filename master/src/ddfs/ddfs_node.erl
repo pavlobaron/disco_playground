@@ -199,9 +199,6 @@ code_change(_OldVsn, State, _Extra) ->
 
 -spec do_get_blob({pid(), _}, state()) -> gs_reply(full) | gs_noreply().
 do_get_blob({Pid, _Ref} = From, #state{getq = Q} = S) ->
-
-lager:error("222    ~p", [Pid]),
-
     Reply = fun() -> gen_server:reply(From, ok) end,
     case http_queue:add({Pid, Reply}, Q) of
         full ->
