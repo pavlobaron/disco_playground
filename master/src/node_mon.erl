@@ -129,12 +129,6 @@ slave_start(Host, RealHost) ->
 
 -spec is_master(host()) -> boolean().
 is_master(Host) ->
-
-
-    lager:error("§§§§§§§§§§§ ~p", [node()]),
-    
-
-
     % the underlying tcp connection used by net_adm:names() may hang,
     % so we use a timed rpc.
     case rpc:call(node(), net_adm, names, [Host], ?RPC_CALL_TIMEOUT) of
