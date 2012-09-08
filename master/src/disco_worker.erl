@@ -41,7 +41,7 @@ start_link_remote(Host, NodeMon, Task) ->
     Node = case string:str(Host, "@") of
 	       0 -> disco:slave_node(Host);
 	       _ -> list_to_atom(Host)
-	   end,
+           end,
     wait_until_node_ready(NodeMon, Host),
     spawn_link(Node, disco_worker, start_link, [{self(), node(), Task}]),
     process_flag(trap_exit, true),
@@ -277,7 +277,8 @@ make_jobhome(JobName, Master) ->
 
 -spec jobhome(jobname()) -> path().
 jobhome(JobName) ->
-    Home = filename:join(disco:get_setting("DISCO_DATA"), disco:host(node())),
+    Host = disco:get_correct_host(node()),
+    Home = filename:join(disco:get_setting("DISCO_DATA"), Host),
     disco:jobhome(JobName, Home).
 
 warning(Msg, #state{master = Master, task = Task}) ->
@@ -285,7 +286,7 @@ warning(Msg, #state{master = Master, task = Task}) ->
 
 -spec event(event_server:task_msg(), task(), node()) -> ok.
 event(Msg, Task, Master) ->
-    Host = disco:host(node()),
+    Host = disco:get_correct_host(node()),
     event_server:task_event(Task, Msg, none, Host, {event_server, Master}).
 
 exit_on_error(S) ->

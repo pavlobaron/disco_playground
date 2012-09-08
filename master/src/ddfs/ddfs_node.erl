@@ -4,7 +4,7 @@
 -export([get_vols/0, gate_get_blob/0, put_blob/1, get_tag_data/3, rescan_tags/0]).
 
 -export([start_link/2, init/1, handle_call/3, handle_cast/2,
-         handle_info/2, terminate/2, code_change/3]).
+         handle_info/2, terminate/2, code_change/3, set_env/1]).
 
 -include("gs_util.hrl").
 -include("common_types.hrl").
@@ -42,6 +42,10 @@ start_link(Config, NodeMon) ->
             error_logger:info_msg("~p exited on ~p: ~p", [?MODULE, node(), Reason0]),
             exit(Reason0)
     end.
+
+-spec set_env(list()) -> no_return().
+set_env(Env) ->
+    lists:map(fun({K, V}) -> os:putenv(K, V) end, Env).
 
 -spec get_vols() -> {[volume()], path()}.
 get_vols() ->
@@ -195,6 +199,9 @@ code_change(_OldVsn, State, _Extra) ->
 
 -spec do_get_blob({pid(), _}, state()) -> gs_reply(full) | gs_noreply().
 do_get_blob({Pid, _Ref} = From, #state{getq = Q} = S) ->
+
+lager:error("222    ~p", [Pid]),
+
     Reply = fun() -> gen_server:reply(From, ok) end,
     case http_queue:add({Pid, Reply}, Q) of
         full ->
@@ -250,7 +257,7 @@ do_get_tag_timestamp(TagName, #state{tags = Tags}) ->
 -spec do_get_tag_data(tagid(), volume_name(), {pid(), _}, state()) -> ok.
 do_get_tag_data(TagId, VolName, From, #state{root = Root}) ->
     {ok, TagDir, _Url} = ddfs_util:hashdir(TagId,
-                                           disco:host(node()),
+                                           disco:get_correct_host(node()),
                                            "tag",
                                            Root,
                                            VolName),

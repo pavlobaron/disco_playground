@@ -142,11 +142,15 @@ wait_workers(0, _Res, _Mode) ->
 wait_workers(N, Results, Mode) ->
     receive
         {{done, TaskResults}, Task, Host} ->
+            case string:str(Host, "@") of
+                0 -> Node = disco:slave_node(Host);
+                _ -> Node = list_to_atom(Host)
+            end,
             event_server:task_event(Task,
                                     disco:format("Received results from ~s", [Host]),
                                     {task_ready, Mode}),
             {N - 1, gb_trees:enter(Task#task.taskid,
-                                   {disco:slave_node(Host), TaskResults},
+                                   {Node, TaskResults},
                                    Results)};
         {{error, Error}, Task, Host} ->
             event_server:task_event(Task,

@@ -66,6 +66,10 @@ do_spawn_node(Host, RealHost, Ports, IsMaster) ->
 -spec connect_node(host(), node(), node_ports()) -> ok.
 connect_node(Host, Node, Ports) ->
     DiscoRoot = disco:get_setting("DISCO_DATA"),
+    case is_master(Host) of
+        true -> start_ddfs_node(Host, node(), DiscoRoot, Ports, {false, false});
+        _ -> ok
+    end,
     node_monitor(Host, Node, DiscoRoot, Ports, true, {true, true}).
 
 get_host_key(Host, Node, JustConnected) ->
@@ -76,29 +80,35 @@ get_host_key(Host, Node, JustConnected) ->
 
 -spec node_monitor(host(), node(), path(), node_ports(), boolean(), {boolean(), boolean()})
                   -> ok.
-node_monitor(Host, Node, DiscoRoot, Ports, JustConnected, WebConfig) ->
+node_monitor(Host, Node, DiscoRoot, Ports, JustConnect, WebConfig) ->
     monitor_node(Node, true),
     start_ddfs_node(Host, Node, DiscoRoot, Ports, WebConfig),
+    case JustConnect of
+	true ->
+	    Env = [{S, disco:get_setting(S)} || S <- disco:settings()],
+	    spawn_link(Node, ddfs_node, set_env, [Env]);
+	_ -> ok
+    end,
     start_temp_gc(Host, Node, DiscoRoot),
     start_lock_server(Node),
-    wait(Host, Node, JustConnected),
-    disco_server:connection_status(get_host_key(Host, Node, JustConnected), down).
+    wait(Host, Node, JustConnect),
+    disco_server:connection_status(get_host_key(Host, Node, JustConnect), down).
 
 -spec wait(host(), node(), boolean()) -> ok.
-wait(Host, Node, JustConnected) ->
+wait(Host, Node, JustConnect) ->
     receive
         {node_ready, RNode} ->
             lager:info("Node started at ~p (reporting as ~p) on ~p",
                        [Node, RNode, Host]),
-            disco_server:connection_status(get_host_key(Host, Node, JustConnected),
+            disco_server:connection_status(get_host_key(Host, Node, JustConnect),
 					   up),
-            wait(Host, Node, JustConnected);
+            wait(Host, Node, JustConnect);
         {is_ready, Pid} ->
             Pid ! node_ready,
-            wait(Host, Node, JustConnected);
+            wait(Host, Node, JustConnect);
         {'EXIT', _, already_started} ->
             lager:info("Node already started at ~p on ~p", [Node, Host]),
-            wait(Host, Node, JustConnected);
+            wait(Host, Node, JustConnect);
         {'EXIT', _, Reason} ->
             lager:info("Node failed at ~p on ~p: ~p", [Node, Host, Reason]);
         {nodedown, _Node} ->

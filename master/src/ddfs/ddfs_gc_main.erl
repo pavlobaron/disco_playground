@@ -1287,5 +1287,5 @@ usable_locations(#state{blacklist = BL, root = Root},
     lists:usort(CurUrls ++ NewUrls).
 
 url(N, V, Blob, Root) ->
-    {ok, _Local, Url} = ddfs_util:hashdir(Blob, disco:host(N), "blob", Root, V),
+    {ok, _Local, Url} = ddfs_util:hashdir(Blob, disco:get_correct_host(N), "blob", Root, V),
     Url.

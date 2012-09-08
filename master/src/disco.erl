@@ -7,7 +7,7 @@
          debug_flags/1, local_cluster/0,
          disco_url_path/1, preferred_host/1,
          enum/1, format/2, format_time/1, format_time/4, format_time_since/1,
-         make_dir/1, ensure_dir/1, is_file/1, is_dir/1]).
+         make_dir/1, ensure_dir/1, is_file/1, is_dir/1, get_correct_host/1]).
 
 -export_type([url_host/0]).
 
@@ -22,6 +22,13 @@
 -define(HOUR, (60 * ?MINUTE)).
 
 -define(MAX_FORMAT_LENGTH, 8192).
+
+-spec get_correct_host(node()) -> string().
+get_correct_host(Node) ->
+    case os:getenv("DISCO_MASTER_CONNECT_RUNNING") of
+        "on" -> atom_to_list(Node);
+        _ -> host(node())
+    end.
 
 -spec get_setting(nonempty_string()) -> string().
 get_setting(SettingName) ->

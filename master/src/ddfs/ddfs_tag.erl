@@ -516,7 +516,7 @@ filter_blacklist(BlobSet, Blacklist) ->
       end, [], BlobSet).
 
 location_url(TagId, Node, DdfsData, Vol) ->
-    Host = disco:host(Node),
+    Host = disco:get_correct_host(Node),
     DdfsRoot = disco:ddfs_root(DdfsData, Host),
     {ok, _, Url} = ddfs_util:hashdir(TagId, Host, "tag", DdfsRoot, Vol),
     Url.

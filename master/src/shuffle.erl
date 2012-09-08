@@ -49,7 +49,7 @@ wait_replies(Name, {Promises, FailCount}, Results) ->
     Messages =
         [begin
             M = "WARNING: Creating index file failed at ~s: ~p (retrying)",
-            event_server:event(Name, M, [disco:host(Node), Reply], none),
+            event_server:event(Name, M, [disco:get_corect_host(Node), Reply], none),
             timer:sleep(10000),
             Msg
          end || {Reply, {Node, _Arg} = Msg} <- Failed],
@@ -64,7 +64,8 @@ wait_replies(Name, {Promises, FailCount}, Results) ->
 -spec combine_tasks_node(path(), jobname(), task_mode(),
                          [nonempty_string()]) -> {ok, binary()}.
 combine_tasks_node(DataRoot, JobName, Mode, DirUrls) ->
-    Host = disco:host(node()),
+    Host = disco:get_correct_host(node()),
+
     JobHome = disco:jobhome(JobName, filename:join([DataRoot, Host])),
     ResultsHome = filename:join(JobHome, ".disco"),
     JobLink = disco:jobhome(JobName, filename:join([Host, "disco", Host])),

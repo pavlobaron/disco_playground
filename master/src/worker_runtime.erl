@@ -116,7 +116,7 @@ do_handle({<<"TASK">>, _Body}, #state{task = Task} = S) ->
                          {<<"mode">>, list_to_binary(atom_to_list(Task#task.mode))},
                          {<<"jobfile">>, list_to_binary(JobFile)},
                          {<<"jobname">>, list_to_binary(Task#task.jobname)},
-                         {<<"host">>, list_to_binary(disco:host(node()))}]},
+                         {<<"host">>, list_to_binary(disco:get_correct_host(node()))}]},
     {ok, {"TASK", TaskInfo}, S};
 
 do_handle({<<"MSG">>, Msg}, #state{task = Task, master = Master} = S) ->
@@ -184,9 +184,8 @@ url_path(Task, Host, LocalFile) ->
 
 -spec local_results(task(), path()) -> binary().
 local_results(Task, FileName) ->
-    Host = disco:host(node()),
-    Output = io_lib:format("dir://~s/~s",
-                           [Host, url_path(Task, Host, FileName)]),
+    Host = disco:get_correct_host(node()),
+    Output = io_lib:format("dir://~s/~s", [Host, url_path(Task, Host, FileName)]),
     list_to_binary(Output).
 
 -spec results(state()) -> {none | binary(), [binary()]}.
@@ -235,7 +234,7 @@ results_filename(Task) ->
 format_output_line(S, [LocalFile, Type]) ->
     format_output_line(S, [LocalFile, Type, <<"0">>]);
 format_output_line(#state{task = Task}, [LocalFile, Type, Label]) ->
-    Host = disco:host(node()),
+    Host = disco:get_correct_host(node()),
     io_lib:format("~s ~s://~s/~s\n",
                   [Label, Type, Host, url_path(Task,
                                                Host,

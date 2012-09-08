@@ -123,7 +123,7 @@ getop("nodeinfo", _Query) ->
 				       disco_server:get_nodeinfo(Node),
 				   Host = case JustConnect of
 					      true -> atom_to_list(Node);
-					      _ -> disco:host(Node)
+					      _ -> disco:get_correct_host(Node)
 					  end,
                                    dict:append_list(Host,
                                                     [{diskfree, Free},
@@ -144,7 +144,7 @@ getop("get_blacklist", _Query) ->
 
 getop("get_gc_blacklist", _Query) ->
     {ok, Nodes} = ddfs_master:gc_blacklist(),
-    {ok, [list_to_binary(disco:host(N)) || N <- Nodes]};
+    {ok, [list_to_binary(disco:get_correct_host(N)) || N <- Nodes]};
 
 getop("get_settings", _Query) ->
     L = [max_failure_rate],
