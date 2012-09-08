@@ -38,7 +38,10 @@
 
 -spec start_link_remote(host(), pid(), task()) -> no_return().
 start_link_remote(Host, NodeMon, Task) ->
-    Node = disco:slave_node(Host),
+    Node = case string:str(Host, "@") of
+	       0 -> disco:slave_node(Host);
+	       _ -> list_to_atom(Host)
+	   end,
     wait_until_node_ready(NodeMon, Host),
     spawn_link(Node, disco_worker, start_link, [{self(), node(), Task}]),
     process_flag(trap_exit, true),

@@ -56,7 +56,6 @@ function update_nodeboxes(data){
     $.each(hosts, function(i, host){
         new Node(host, data[host]).append_to($("#nodes"));
     });
-
     setTimeout(function(){
         $.getJSON("/disco/ctrl/nodeinfo", update_nodeboxes);
     }, 10000);

@@ -96,7 +96,6 @@ init(Config) ->
 
     Scanner = spawn_link(fun() -> refresh_tags(DdfsRoot, Vols) end),
     spawn_link(fun() -> monitor_diskspace(DdfsRoot, Vols) end),
-
     {ok, #state{nodename = NodeName,
                 root = DdfsRoot,
                 vols = Vols,

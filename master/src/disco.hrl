@@ -24,7 +24,8 @@
                    num_running :: non_neg_integer(),
                    stats_ok :: non_neg_integer(),
                    stats_failed :: non_neg_integer(),
-                   stats_crashed :: non_neg_integer()}).
+                   stats_crashed :: non_neg_integer(),
+		   just_connect :: boolean()}).
 -type nodeinfo() :: #nodeinfo{}.
 
 -type task_input() :: {binary(), host()}.

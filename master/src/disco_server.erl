@@ -26,7 +26,9 @@
                 stats_ok :: non_neg_integer(),
                 stats_failed :: non_neg_integer(),
                 stats_crashed :: non_neg_integer(),
-		node :: node()
+		node :: node(),
+		net_host :: host(),
+		just_connect :: boolean()
 	       }).
 -type dnode() :: #dnode{}.
 
@@ -83,7 +85,7 @@ update_config_table(Config, Blacklist, GCBlacklist) ->
 get_active(JobName) ->
     gen_server:call(?MODULE, {get_active, JobName}).
 
--spec get_nodeinfo(all) -> {ok, [nodeinfo()]}.
+-spec get_nodeinfo(all | node()) -> {ok, [nodeinfo()]}.
 get_nodeinfo(Spec) ->
     gen_server:call(?MODULE, {get_nodeinfo, Spec}).
 
@@ -169,7 +171,7 @@ handle_cast({purge_job, JobName}, S) ->
                  ({new_task, task()}, from(), state()) -> gs_reply(ok | failed);
                  ({get_active, jobname()}, from(), state()) ->
                          gs_reply({ok, active_tasks()});
-                 ({get_nodeinfo, all}, from(), state()) ->
+                 ({get_nodeinfo, all | node()}, from(), state()) ->
                          gs_reply({ok, [nodeinfo()]});
                  (get_purged, from(), state()) -> gs_reply({ok, [binary()]});
                  (get_num_cores, from(), state()) -> gs_reply({ok, cores()});
@@ -189,8 +191,8 @@ handle_call({new_task, Task}, _, S) ->
 handle_call({get_active, JobName}, _From, S) ->
     {reply, do_get_active(JobName, S), S};
 
-handle_call({get_nodeinfo, all}, _From, S) ->
-    {reply, do_get_nodeinfo(S), S};
+handle_call({get_nodeinfo, Node}, _From, S) ->
+    {reply, do_get_nodeinfo(S, Node), S};
 
 handle_call(get_purged, _, S) ->
     {Result, S1} = do_get_purged(S),
@@ -276,9 +278,15 @@ nodemon_exit(Pid, #state{nodes = Nodes} = S) ->
     nodemon_exit(Pid, S, gb_trees:next(Iter)).
 
 nodemon_exit(Pid, #state{nodes = Nodes, port_map = PortMap} = S,
-             {Host, #dnode{node_mon = Pid} = N, _Iter}) ->
+             {Host, #dnode{node_mon = Pid,
+			   just_connect = JustConnect,
+			   net_host = NetHost,
+			   node = Node} = N, _Iter}) ->
     lager:warning("Restarting monitor for ~p", [Host]),
-    N1 = N#dnode{node_mon = node_mon:start_link(Host, node_ports(Host, PortMap))},
+    N1 = N#dnode{node_mon = node_mon:start_link(NetHost,
+						Node,
+						node_ports(Host, PortMap),
+						JustConnect)},
     S1 = S#state{nodes = gb_trees:update(Host, N1, Nodes)},
     {noreply, do_connection_status(Host, down, S1)};
 
@@ -326,8 +334,14 @@ update_nodes(Nodes) ->
     WhiteNodes = [{H, S}
                   || #dnode{host = H, slots = S} = N <- gb_trees:values(Nodes),
                      allow_task(N)],
-    DDFSNodes = [{disco:slave_node(N#dnode.host),
-                  allow_write(N), allow_read(N)} || N <- gb_trees:values(Nodes)],
+    Fun = fun(N) ->
+		  A = case N#dnode.just_connect of
+		      true -> N#dnode.node;
+		      _ -> disco:slave_node(N#dnode.host)
+		  end,
+		  {A, allow_write(N), allow_read(N)}
+	  end,
+    DDFSNodes = [Fun(N) || N <- gb_trees:values(Nodes)],
     ddfs_master:update_nodes(DDFSNodes),
     fair_scheduler:update_nodes(WhiteNodes),
     schedule_next().
@@ -403,15 +417,24 @@ do_update_config_table(Config, Blacklist, GCBlacklist,
     lager:info("Config table updated"),
     {NewNodes, NewPortMap} =
         lists:foldl(
-          fun({HHost, Slots}, {NewNodes, PortMap}) ->
+          fun({Host, Slots}, {NewNodes, PortMap}) ->
 		  ConnectRunning = disco:has_setting("DISCO_MASTER_CONNECT_RUNNING"),
 		  case ConnectRunning of
 		      true ->
 			  case disco:get_setting("DISCO_MASTER_CONNECT_RUNNING") of
-			      "on" -> [_, Host] = string:tokens(HHost, "@");
-			      _ -> Host = HHost
+			      "on" ->
+				  [_, NetHost] = string:tokens(Host, "@"),
+				  Node = list_to_atom(Host),
+				  JustConnect = true;
+			      _ ->
+				  NetHost = Host,
+				  Node = none,
+				  JustConnect = false
 			  end;
-		      _ -> Host = HHost
+		      _ ->
+			  NetHost = Host,
+			  Node = none,
+			  JustConnect = false
 		  end,
                   {NewNode, NewMap} =
                       case gb_trees:lookup(Host, Nodes) of
@@ -419,9 +442,11 @@ do_update_config_table(Config, Blacklist, GCBlacklist,
                               NewPortMap = update_port_map(PortMap, Host),
                               NodePorts = node_ports(Host, NewPortMap),
                               lager:debug("Adding new node ~p", [Host]),
-			      Node = list_to_atom(HHost),
                               {#dnode{host = Host,
-                                      node_mon = node_mon:start_link(Host, NodePorts, Node),
+                                      node_mon = node_mon:start_link(NetHost,
+								     Node,
+								     NodePorts,
+								     JustConnect),
                                       manual_blacklist = lists:member(Host, Blacklist),
                                       connection_status = {down, now()},
                                       slots = Slots,
@@ -429,7 +454,9 @@ do_update_config_table(Config, Blacklist, GCBlacklist,
                                       stats_ok = 0,
                                       stats_failed = 0,
                                       stats_crashed = 0,
-				      node = Node
+				      node = Node,
+				      net_host = NetHost,
+				      just_connect = JustConnect
 				     },
                                NewPortMap};
                           {value, N} ->
@@ -539,24 +566,44 @@ do_get_active(JobName, #state{workers = Workers}) ->
                                   <- gb_trees:values(Workers), N == JobName],
     {ok, Active}.
 
--spec do_get_nodeinfo(state()) -> {ok, [nodeinfo()]}.
-do_get_nodeinfo(#state{nodes = Nodes}) ->
-    Info = [#nodeinfo{name = Host,
-                      slots = Slots,
-                      num_running = NumRunning,
-                      stats_ok = StatsOk,
-                      stats_failed = StatsFailed,
-                      stats_crashed = StatsCrashed,
-                      connected = ConnectionStatus =:= up,
-                      blacklisted = Blacklisted}
-            || #dnode{host = Host,
+-spec do_get_nodeinfo(state(), node() | all) -> {ok, [nodeinfo()]}.
+do_get_nodeinfo(#state{nodes = Nodes}, Node) ->
+    Fun = fun(#dnode{host = Host,
                       slots = Slots,
                       num_running = NumRunning,
                       stats_ok = StatsOk,
                       stats_failed = StatsFailed,
                       stats_crashed = StatsCrashed,
                       connection_status = {ConnectionStatus, _},
-                      manual_blacklist = Blacklisted} <- gb_trees:values(Nodes)],
+                      manual_blacklist = Blacklisted,
+		      just_connect = JustConnect,
+		      node = NNode}, ONode) ->
+		  case {JustConnect, NNode} of
+		      {_, all} ->
+			  #nodeinfo{name = Host,
+				    slots = Slots,
+				    num_running = NumRunning,
+				    stats_ok = StatsOk,
+				    stats_failed = StatsFailed,
+				    stats_crashed = StatsCrashed,
+				    connected = ConnectionStatus =:= up,
+				    blacklisted = Blacklisted,
+				    just_connect = JustConnect};
+		      {true, ONode} ->
+			  #nodeinfo{name = Host,
+				    slots = Slots,
+				    num_running = NumRunning,
+				    stats_ok = StatsOk,
+				    stats_failed = StatsFailed,
+				    stats_crashed = StatsCrashed,
+				    connected = ConnectionStatus =:= up,
+				    blacklisted = Blacklisted,
+				    just_connect = JustConnect};
+		      {true, _} -> none
+		  end
+	  end,
+    IInfo = [Fun(DNode, Node) || DNode <- gb_trees:values(Nodes)],
+    Info = [X || X <- IInfo, X =/= none],
     {ok, Info}.
 
 -spec do_get_purged(state()) -> {{ok, [binary()]}, state()}.

@@ -118,8 +118,14 @@ getop("nodeinfo", _Query) ->
                                       {connected, N#nodeinfo.connected},
                                       {blacklisted, N#nodeinfo.blacklisted}]}
                                     || N <- DiscoNodes]),
-    NodeInfo = lists:foldl(fun ({Node, {Free, Used}}, Dict) ->
-                                   dict:append_list(disco:host(Node),
+    NodeInfo = lists:foldl(fun ({Node, {Free, Used}}, Dict) -> 
+				   {ok, [#nodeinfo{just_connect = JustConnect}]} =
+				       disco_server:get_nodeinfo(Node),
+				   Host = case JustConnect of
+					      true -> atom_to_list(Node);
+					      _ -> disco:host(Node)
+					  end,
+                                   dict:append_list(Host,
                                                     [{diskfree, Free},
                                                      {diskused, Used}],
                                                     Dict)

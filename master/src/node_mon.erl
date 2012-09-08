@@ -1,5 +1,5 @@
 -module(node_mon).
--export([start_link/3]).
+-export([start_link/4]).
 
 -include("common_types.hrl").
 -include("disco.hrl").
@@ -9,27 +9,21 @@
 -define(RPC_CALL_TIMEOUT, 30000).
 -define(RPC_RETRY_TIMEOUT, 120000).
 
--spec start_link(host(), node_ports(), node()) -> pid().
-start_link(Host, Ports, Node) ->
+-spec start_link(host(), node(), node_ports(), boolean()) -> pid().
+start_link(Host, Node, Ports, JustConnect) ->
     % Depending on the name of the host and configuration,
     % decide iF to start a slave or just to connect to it
-    ConnectRunning = disco:has_setting("DISCO_MASTER_CONNECT_RUNNING"),
-    case ConnectRunning of
+    case JustConnect of
 	true ->
-	    case {is_master(Host),
-		  disco:get_setting("DISCO_MASTER_CONNECT_RUNNING")} of
-		{_, "on"} ->
-		    % TODO!!!
-		    % that's seriously weird: -setcookie gets ignored or
-		    % overriden, so we need to set the cookie from settings
-		    % again
-		    erlang:set_cookie(node(),
-		      list_to_atom(disco:get_setting("DISCO_COOKIE"))),
-		    spawn_link(fun() -> connect_node(Host, Node, Ports) end);
-		_ ->
-		    spawn_link(fun() -> spawn_node(Host, Ports) end)
-	    end;
-	_ -> spawn_link(fun() -> spawn_node(Host, Ports) end)
+	    % TODO!!!
+	    % that's seriously weird: -setcookie gets ignored or
+	    % overriden, so we need to set the cookie from settings
+	    % again
+	    erlang:set_cookie(node(),
+			      list_to_atom(disco:get_setting("DISCO_COOKIE"))),
+	    spawn_link(fun() -> connect_node(Host, Node, Ports) end);
+	_ ->
+	    spawn_link(fun() -> spawn_node(Host, Ports) end)
     end.
 
 -spec spawn_node(host(), node_ports(), boolean()) -> ok.
@@ -54,50 +48,57 @@ do_spawn_node(Host, RealHost, Ports, IsMaster) ->
             start_ddfs_node(Host, node(), DiscoRoot, Ports, {false, false}),
             % start ddfs_node for the slave on the master node.
             % put enabled, but no get, which is handled by master
-            node_monitor(Host, Node, DiscoRoot, Ports, {false, true});
+            node_monitor(Host, Node, DiscoRoot, Ports, false, {false, true});
         {false, {ok, Node}} ->
             % normal remote ddfs_node, both put and get enabled
-            node_monitor(Host, Node, DiscoRoot, Ports, {true, true});
+            node_monitor(Host, Node, DiscoRoot, Ports, false, {true, true});
         {_, {error, {already_running, Node}}} ->
-            node_monitor(Host, Node, DiscoRoot, Ports, {not(IsMaster), true});
+            node_monitor(Host, Node, DiscoRoot, Ports, false, {not(IsMaster), true});
         {_, {error, timeout}} ->
             lager:info("Connection timed out to ~p", [Host]),
-            disco_server:connection_status(Host, down);
+            disco_server:connection_status(get_host_key(Host, none, false), down);
         Error ->
             lager:warning("Spawning node at ~p failed: ~p", [Host, Error]),
-            disco_server:connection_status(Host, down)
+            disco_server:connection_status(get_host_key(Host, none, false), down)
     end,
     timer:sleep(?RESTART_DELAY).
 
 -spec connect_node(host(), node(), node_ports()) -> ok.
 connect_node(Host, Node, Ports) ->
     DiscoRoot = disco:get_setting("DISCO_DATA"),
-    node_monitor(Host, Node, DiscoRoot, Ports, {true, true}).
+    node_monitor(Host, Node, DiscoRoot, Ports, true, {true, true}).
 
--spec node_monitor(host(), node(), path(), node_ports(), {boolean(), boolean()})
+get_host_key(Host, Node, JustConnected) ->
+    case JustConnected of
+	true -> atom_to_list(Node);
+	_ -> Host
+    end.
+
+-spec node_monitor(host(), node(), path(), node_ports(), boolean(), {boolean(), boolean()})
                   -> ok.
-node_monitor(Host, Node, DiscoRoot, Ports, WebConfig) ->
+node_monitor(Host, Node, DiscoRoot, Ports, JustConnected, WebConfig) ->
     monitor_node(Node, true),
     start_ddfs_node(Host, Node, DiscoRoot, Ports, WebConfig),
     start_temp_gc(Host, Node, DiscoRoot),
     start_lock_server(Node),
-    wait(Host, Node),
-    disco_server:connection_status(Host, down).
+    wait(Host, Node, JustConnected),
+    disco_server:connection_status(get_host_key(Host, Node, JustConnected), down).
 
--spec wait(host(), node()) -> ok.
-wait(Host, Node) ->
+-spec wait(host(), node(), boolean()) -> ok.
+wait(Host, Node, JustConnected) ->
     receive
         {node_ready, RNode} ->
             lager:info("Node started at ~p (reporting as ~p) on ~p",
                        [Node, RNode, Host]),
-            disco_server:connection_status(Host, up),
-            wait(Host, Node);
+            disco_server:connection_status(get_host_key(Host, Node, JustConnected),
+					   up),
+            wait(Host, Node, JustConnected);
         {is_ready, Pid} ->
             Pid ! node_ready,
-            wait(Host, Node);
+            wait(Host, Node, JustConnected);
         {'EXIT', _, already_started} ->
             lager:info("Node already started at ~p on ~p", [Node, Host]),
-            wait(Host, Node);
+            wait(Host, Node, JustConnected);
         {'EXIT', _, Reason} ->
             lager:info("Node failed at ~p on ~p: ~p", [Node, Host, Reason]);
         {nodedown, _Node} ->
@@ -128,6 +129,12 @@ slave_start(Host, RealHost) ->
 
 -spec is_master(host()) -> boolean().
 is_master(Host) ->
+
+
+    lager:error("§§§§§§§§§§§ ~p", [node()]),
+    
+
+
     % the underlying tcp connection used by net_adm:names() may hang,
     % so we use a timed rpc.
     case rpc:call(node(), net_adm, names, [Host], ?RPC_CALL_TIMEOUT) of
