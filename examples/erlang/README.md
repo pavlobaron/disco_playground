@@ -1,4 +1,4 @@
-## How read inputs from local Riak vnodes ##
+## How to read inputs from local Riak vnodes ##
 
 The main principle is data locality. So Riak isn't being talked to through one of its general high level interfaces, but rather through a low level Erlang interface on a local node. Riak and Disco nodes are all the same in this case, and Disco connects to already running nodes rather to start new slaves - per configuration, of course.
 
