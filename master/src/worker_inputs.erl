@@ -23,7 +23,14 @@
 -spec init(binary() | [binary()] | [[binary()]]) -> state().
 init(Url) when is_binary(Url) ->
     init([Url]);
-init(Inputs) when is_list(Inputs) ->
+init(RawInputs) when is_list(RawInputs) ->
+    % hack to transform erl:// to raw:// after
+    % returning from the configured erlang function.
+    % It needs further consideration and tests if
+    % the function doesn't return too much data, so
+    % raw would flood memory. Possible is streaming
+    % to outputs
+    Inputs = [erl_inputs:transform(I) || I <- RawInputs],
     Items = [init_replicaset(Iid, Urls) || {Iid, Urls} <- disco:enum(Inputs)],
     {gb_trees:from_orddict(lists:flatten(Items)), length(Inputs)}.
 
