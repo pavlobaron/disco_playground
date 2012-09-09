@@ -9,6 +9,8 @@
 *.pyc
 *.dialyzer_plt
 *.eunit
+*.py~
+*.erl~
 master/deps
 master/ebin
 doc/.build/
