@@ -22,7 +22,7 @@ local_vnodes_stream(Bucket) ->
 -spec receiver_loop(pid(), integer(), binary(), term()) -> ok.
 receiver_loop(Owner, 0, Bucket, VNodeKeys) ->
     Max = 4,%length(VNodeKeys),
-    %TODO: here, the huge memory usage hits hart:
+    %TODO: here, the huge memory usage hits hard:
     %hard limit here for live demo, but more for the mapper to get done at all
     %long_gc info messages flying around, too much heap on one single process.
     %+hms doesn't help, one single process flooded by data,
@@ -54,7 +54,7 @@ read_data_loop(Data, Counter) ->
     receive
         {_, {_, {r_object, _, _, [{r_content, _, Object}], _, _, _}, _, _}} ->
             %TODO: refactor to add a dummy vector clock, use riakc (but siblings?..)
-            read_data_loop([binary_to_list(Object), ","|Data], Counter - 1);
+            read_data_loop([binary_to_list(Object), "\n"|Data], Counter - 1);
         Dunno ->
             error_logger:error_msg("what is this? ~p~n", [Dunno]),
             read_data_loop(Data, Counter - 1)
