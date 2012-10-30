@@ -8,7 +8,18 @@ Well, there are different reasons. First of all, Disco's ddfs is good for storin
 
 ### Status ###
 
-Right now, it's a first step working for a own very special use case. It only has one writer and it always just adds new records. So, concurrent writes with version conflicts are out of consideration. In this case, you can ask a Riak node locally for its vnodes and pull the data out of them. What is seriously needed is to consider how one can avoid several physical nodes running jobs on the same data since on key gets replicated. Maybe some sort of ranges or such. It's now building on the reducer to get rid of duplicates, but in case of real huge data amounts and a need to be fast on analytics withouth overhead, a solution for this issue is needed. You could overcome this issue by configuring only one node per replica set to be connected by Disco. But when this node fails, you either exclude a percentage of data from analytics, or Disco would have to be extended to be able to accept whole replica sets per slave to have alternative entry points.
+Right now, it's a first step working for a own very special use
+case. It only has one writer and it always just adds new records. So,
+concurrent writes with version conflicts are out of consideration. And
+anyway, it's definitely a better idea to run analytics on a passive
+replicated Riak cluster (RiakEDS) instead on one being under high
+load.
+
+In this case, you ask a Riak node locally for its vnodes and pull the
+data out of them. What is seriously needed is to consider how one can
+avoid several physical nodes running jobs on the same data since keys
+get replicated. Maybe some sort of ranges or similar. It would be easy
+to avoid duplicates within one single BEAM instance, but in case of real huge data amounts and a need to be fast on analytics withouth overhead, a solution for this issue is needed. One could overcome this issue by configuring only one node per replica set to be connected by Disco. But when this node fails, you either exclude a percentage of data from analytics, or Disco would have to be extended to be able to accept whole replica sets per slave to have alternative entry points.
 
 What also might be interesting is auto-discovery of nodes, either through Riak or by the means of distributed Erlang. One concern could be that it breaks the explicit node configuration you do in Disco to name the slaves to run jobs on. But you win more in a distributed system such as Riak.
 

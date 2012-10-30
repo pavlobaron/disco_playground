@@ -1,11 +1,15 @@
 def input_stream(fd, sze, url, params):
     """Opens a StringIO whose data is everything after the url scheme,
-    which is an Erlang function call like 'module:fun/0'. No arguments
-    are accepted (yet), thus the function needs to autonomously get its data
-    from somewhere, for example from the local Riak data node (see examples).
+    which is an Erlang function call like 'module:fun/<STRING>'. Only one argument
+    is accepted (yet), thus the function needs to autonomously get its data
+    based on this parameter, for example from the local Riak data node (see examples)
+    using a bucket id. Anyway, the erlang function will be applied as
+    "module, fun/0, [<STRING>]".
 
     Further, it's obvious that currently the called function can only be
-    synchronous, thus returning all results on return.
+    synchronous, thus returning all results on return. This consumes memory if there
+    is a lot of data, which is also obvious. In the future, data will be streamed
+    in chunks.
 
     The same function will be called on every available node, so the
     corresponding module needs to be on the path.

@@ -13,4 +13,5 @@ make
 
 #~/opt/riak/rel/riak2/bin/riak-admin cluster join riak1@127.0.0.1
 #~/opt/riak/rel/riak3/bin/riak-admin cluster join riak1@127.0.0.1
+
 disco start

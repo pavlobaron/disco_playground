@@ -1,6 +1,6 @@
 -module(erl_inputs).
 
--export([transform/1, test/0]).
+-export([transform/1, test/1]).
 
 -spec transform(string()) -> string().
 transform(Input) ->
@@ -9,13 +9,15 @@ transform(Input) ->
       MF = binary_to_list(MFB),
       P1 = string:str(MF, ":"),
       P2 = string:str(MF, "/"),
-      M = string:sub_string(MF, 1, P1 - 1),
-      F = string:sub_string(MF, P1 + 1, P2 - 1),
-      list_to_binary("raw://" ++ apply(list_to_atom(M), list_to_atom(F), []))
+      Module = string:sub_string(MF, 1, P1 - 1),
+      Function = string:sub_string(MF, P1 + 1, P2 - 1),
+      Parameter = string:sub_string(MF, P2 + 1),
+      list_to_binary("raw://" ++ apply(list_to_atom(Module), list_to_atom(Function),
+                                       [Parameter]))
     catch _:_ ->
         Input
     end.
 
--spec test() -> string().
-test() ->
-    "this is just a test".
+-spec test(string()) -> string().
+test(Parameter) ->
+    "this is just a test. It says " ++ Parameter.

@@ -10,7 +10,7 @@ def reduce(iter, params):
         yield word, sum(counts)
 
 if __name__ == '__main__':
-    job = Job().run(input=["erl://erl_inputs:test/dummy"],
+    job = Job().run(input=["erl://riak_stream:local_vnodes_stream/twitterbk"],
                     map=map,
                     reduce=reduce)
     for word, count in result_iterator(job.wait(show=True)):
