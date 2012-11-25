@@ -1,5 +1,9 @@
 #!/bin/sh
 
+ulimit -n 2048
+
+sudo rabbitmqctl stop
+
 disco stop
 make
 
@@ -15,3 +19,5 @@ make
 #~/opt/riak/rel/riak3/bin/riak-admin cluster join riak1@127.0.0.1
 
 disco start
+
+sudo rabbitmq-server -detached

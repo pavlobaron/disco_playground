@@ -12,12 +12,11 @@ transform(Input) ->
       Module = string:sub_string(MF, 1, P1 - 1),
       Function = string:sub_string(MF, P1 + 1, P2 - 1),
       Parameter = string:sub_string(MF, P2 + 1),
-      list_to_binary("raw://" ++ apply(list_to_atom(Module), list_to_atom(Function),
-                                       [Parameter]))
+      list_to_binary(apply(list_to_atom(Module), list_to_atom(Function), [Parameter]))
     catch _:_ ->
         Input
     end.
 
 -spec test(string()) -> string().
 test(Parameter) ->
-    "this is just a test. It says " ++ Parameter.
+    "raw://dummy test " ++ Parameter.

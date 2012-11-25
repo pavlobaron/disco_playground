@@ -33,6 +33,13 @@ parse(Buffer, new_message) ->
             {cont, Buffer, new_message}
     end;
 parse(Buffer, {parse_length, Type} = State) ->
+
+
+
+    error_logger:info_msg("PARSING: ~p ~p", [Type, Buffer]),
+    
+
+
     TypeLen = byte_size(Type) + 1,
     <<_:TypeLen/binary, Rest/binary>> = Buffer,
     case head(Rest) of

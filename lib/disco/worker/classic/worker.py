@@ -235,6 +235,7 @@ class Worker(worker.Worker):
         envs = super(Worker, self).jobenvs(job, **jobargs)
         envs['LD_LIBRARY_PATH'] = 'lib'
         envs['PYTHONPATH'] = ':'.join(('lib', envs.get('PYTHONPATH', '')))
+
         return envs
 
     def jobzip(self, job, **jobargs):

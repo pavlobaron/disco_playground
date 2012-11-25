@@ -12,6 +12,8 @@ def reduce(iter, params):
 if __name__ == '__main__':
     job = Job().run(input=["erl://riak_stream:local_vnodes_stream/twitterbk"],
                     map=map,
-                    reduce=reduce)
+                    reduce=reduce,
+                    required_modules=[('rabbitio', '/Users/pb/code/rabbitio'),
+                                      ('pika', '/Users/pb/code/pika')])
     for word, count in result_iterator(job.wait(show=True)):
         print word, count

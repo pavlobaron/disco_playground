@@ -213,6 +213,7 @@ class Worker(dict):
         """
         :return: :ref:`jobenvs` dict.
         """
+
         return {'PYTHONPATH': ':'.join([path.strip('/') for path in sys.path])}
 
     def jobhome(self, job, **jobargs):
